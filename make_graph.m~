@@ -1,0 +1,292 @@
+function G = make_graph(result_i)
+load('vars');
+% junc1(count->pixel), junc2(pixel->count), spix(label->[[x,y];]),
+% junc(count) = list of labels
+done = containers.Map(-1,1);
+Max = -1;
+im = imread(sprintf('result/junction_%d.jpg',result_i));
+Angle = containers.Map(-1,[2,2,2]);
+junc_im = zeros(size(im,1),size(im,2));
+G = zeros(count,count);
+Neigh = zeros(count,count);
+% newNeigh = zeros(count,count);
+for i=1:count
+    labels = junc(i);
+    neigh = [];
+    neigh_expected = 0;
+    for j=1:4
+        if labels(j) == -1
+            break;
+        end
+        neigh_expected = neigh_expected + 1;
+        n = spix(labels(j));
+        two = 0;
+        for k=j+1:4
+            if labels(k) == -1
+                break;
+            end
+            n2 = intersect(n, spix(labels(k)),'rows');
+            for l=1:size(n2,1)
+                if junc2(sprintf('%d %d',n2(l,1),n2(l,2))) ~= i
+                    neigh = [neigh;n2(l,:)];
+                    break;
+                    
+                end
+            end
+        end
+    end
+    p1 = sscanf(junc1(i),'%d');
+    p1 = p1';
+    
+    neigh=unique(neigh,'rows');
+    if Dead_end(i) == 0 & size(neigh,1) ~= neigh_expected % PROBLEM TO BE ADDRESSED !!
+        continue;
+    end
+    if size(neigh,1) == 0
+        continue;
+    end
+    %     'start'
+    %     size(neigh)
+    for j=1:size(neigh,1)
+        Neigh(i,j) = junc2(sprintf('%d %d',neigh(j,1),neigh(j,2)));
+    end
+    
+    %     'end'
+    
+    %     Neigh(i,1:10)
+    %     Neigh(count) = neigh;
+    for j=1:size(neigh,1)
+        p2=neigh(j,:);
+        if isKey(done,junc2(sprintf('%d %d',p2(1),p2(2)))) ~= 1
+            im = draw_dot(im,p2,[255,0,0],2);
+            junc_im(p2(1),p2(2)) = 1;
+        end
+        G(i,junc2(sprintf('%d %d', neigh(j,1),neigh(j,2)))) = 1;
+        G(junc2(sprintf('%d %d', neigh(j,1),neigh(j,2))),i) = 1;
+        im = draw_line(im,p1,p2,[255,255,0]);
+    end
+    base = p1;   
+    done(i) = 1;
+end
+'saving'
+% imwrite(junc_im,sprintf('result/base_%d.jpg',result_i));
+imwrite(im,sprintf('result/result_%d.jpg',result_i));
+save(sprintf('result/base_%d.mat',result_i),'junc_im','im');
+save(sprintf('result/vars_%d.mat',result_i),'junc1','junc2','G');
+win = uint32(regionSize/5); % 2n+1x2n+1
+
+newnode = containers.Map(-1,-1);
+revnode = containers.Map(-1,-1);
+newcount = 0;
+
+New_id = containers.Map(-1,-1);
+for i=1:count
+    p = sscanf(junc1(i),'%d');
+    p=p';
+    if isKey(New_id,i) ~= 0
+        continue;
+    end
+    newcount = newcount + 1;
+    newnode(i) = newcount;
+    revnode(newcount) =i;
+    for j=p(1)-win:p(1)+win
+        for k=p(2)-win:p(2)+win
+            if j < 1 | j > s(1) | k < 1 | k > s(2)
+                continue;
+            end
+            if isKey(junc2,sprintf('%d %d',j,k)) == 0
+                continue;
+            end
+            
+            id = junc2(sprintf('%d %d', j,k));
+            if isKey(New_id,id) == 0
+                New_id(id) = i;
+            end
+        end
+    end
+end
+
+newim = imread(strcat(folder,'/',files(result_i).name));
+new_segments = zeros(size(newim,1),size(newim,2)); 
+% segments = imread(strcat(folder,'
+% newNeigh = zeros(count,count);
+newNeigh = containers.Map(-1,[-1,-1]);
+Gnew = containers.Map(-1,[-1,-1]);
+for i=1:count
+    neigh = [];
+    i2 = New_id(i);
+    for j=i+1:count
+        if G(i,j) == 1
+            j2 = New_id(j);
+            p1 = sscanf(junc1(i2),'%d');
+            p2 = sscanf(junc1(j2),'%d');
+            newim = draw_line(newim,p1,p2,[255,0,0]);                    
+            new_segments = draw_line(new_segments, p1, p2, [-1]);
+            if isKey(newNeigh,i2) == 0
+                newNeigh(i2) = [p2'];
+                Gnew(newnode(i2)) = [p2'];
+            else
+                newNeigh(i2) = [newNeigh(i2);p2'];
+                Gnew(newnode(i2)) = [Gnew(newnode(i2));p2'];
+            end
+            if isKey(newNeigh,j2) == 0
+                newNeigh(j2) = [p1'];
+                Gnew(newnode(j2)) = [p1'];
+            else
+                newNeigh(j2) = [newNeigh(j2);p1'];
+                Gnew(newnode(j2)) = [Gnew(newnode(j2));p1'];
+            end
+        end
+    end
+end
+% newcount
+junc1_new = containers.Map(-1,'0 0');
+junc2_new = containers.Map('0 0',-1);
+temp = ones(size(segments,1),size(segments,2),3);
+% junc1(count) = sprintf('%d %d', i, j);
+% junc2(sprintf('%d %d', i, j)) = count;
+G = zeros(newcount,newcount);
+for lol=1:newcount    
+    i = (revnode(lol));
+    p1 = sscanf(junc1(i),'%d');
+    junc2_new(sprintf('%d %d',p1(1),p1(2))) = lol;
+    junc1_new(lol) = sprintf('%d %d', p1(1),p1(2));
+%     p = sscanf(junc1_new(lol),'%d');
+    temp = draw_dot(temp,p,[255,0,0],1);
+    
+%     
+    if isKey(Gnew,lol) == 0
+        'this cannot happen'
+        continue;
+    end
+    neigh = Gnew(lol);
+    neigh2 = [];
+    for j=1:size(neigh,1)
+        neigh2 = [neigh2;junc2(sprintf('%d %d', (neigh(j,1)),(neigh(j,2))))];
+    end    
+    neigh2=unique(neigh2,'rows');
+    neigh = [];
+    for j=1:size(neigh2,1)
+        if neigh2(j) == i
+            continue;
+        end
+        neigh = [neigh;neigh2(j)];
+        G(lol,newnode(New_id(neigh2(j)))) = 1;
+        G(newnode(New_id(neigh2(j))),lol) = 1;
+%         P1 = sscanf(junc1(
+%          I = draw_line(I,p1,p2,[255,0,0]);
+    end
+    if size(neigh,1) == 2 | size(neigh,1) == 1
+        newim = draw_dot(newim,p1,[255,0,0],2);
+    else if size(neigh,1) == 3
+            a = sscanf(junc1(neigh(1)),'%d');
+            a=a';
+            if a(1) == p1(1) & a(2) == p1(2)
+                continue;
+            end
+            b = sscanf(junc1(neigh(2)),'%d');
+            b=b';
+            if b(1) == p1(1) & b(2) == p1(2)
+                continue;
+            end
+            c = sscanf(junc1(neigh(3)),'%d');
+            c=c';
+            if c(1) == p1(1) & c(2) == p1(2)
+                continue;
+            end
+            base = p1';
+            A = ones(1,12);
+            A(1) = my_angle(a,b,base);
+            A(2) = my_angle(a,c,base);
+            A(3) = my_angle(b,c,base);
+            A(4) = my_angle(b,a,base);
+            A(5) = my_angle(c,b,base);
+            A(6) = my_angle(c,a,base);
+            for j=7:12
+                A(j) = 360-A(j-6);
+            end
+            mind = 1000;
+            for j=1:12
+                for k=j+1:12
+                    for l=k+1:12
+                        if abs(sum([A(j),A(k),A(l)])-360.0) < mind
+                            angle = [A(j),A(k),A(l)];
+                            mind=abs(sum(angle)-360.0);
+                        end
+                    end
+                end
+            end
+            if mind > Max
+                Max = mind;
+            end
+            angle = sort((angle));
+            Angle(i) = angle;           
+%             continue;
+            if angle(3) > 220
+                newim = draw_dot(newim,p1,[0,255,255],2); % W (cyan)
+            else if angle(3) > 150
+                    newim = draw_dot(newim,p1,[0,0,255],2); % T (blue)
+                else
+                    newim = draw_dot(newim,p1,[0,255,0],2); % Y (green)
+                end
+            end
+        else if size(neigh,1) == 4
+                newim = draw_dot(newim,p1,[255,0,255],2); % X (magenta)
+            end
+        end
+    end
+end
+
+[new_segments,realn] = bfs3(new_segments);
+total_spix = size(realn);
+tempdic = containers.Map(-1,-1);
+for i=1:size(realn,1)
+    tempdic(realn(i)) =  i;
+end
+for i=1:size(new_segments,1)
+    for j=1:size(new_segments,2)
+        if new_segments(i,j) ~= 0
+            new_segments(i,j) = tempdic(new_segments(i,j));
+        end
+    end
+end
+junc_neigh = containers.Map(-1,[1,2,3,4]);
+s = size(new_segments);
+win = 2;
+for i=1:newcount
+    p = sscanf(junc1_new(i),'%d');
+%     p = sscanf(junc1_new(lol),'%d');
+%     temp = draw_dot(temp,p,[255,0,0],1);
+    val = [];
+    for j=p(1)-win:p(1)+win
+        for k=p(2)-win:p(2)+win
+            if j < 1 | j > s(1) | k < 1 | k > s(2)
+                continue;
+            end
+            if new_segments(j,k) == 0
+                continue;
+            end
+            val = [val;new_segments(j,k)];
+        end
+    end
+    val = unique(val,'rows');
+    val2=[0,0,0,0];
+    for j=1:size(val,1)
+        val2(j) = val(j);
+    end
+    junc_neigh(i) = val2;
+end
+
+% junc1(count->pixel), junc2(pixel->count)
+% junc(count) = list of labels
+pixel_pos = junc1_new;
+pixel_no = junc2_new;
+% imshow(temp);
+% figure;
+% G = Gnew;
+[G, G_contour,E] = construct_graph(G,junc1_new,junc2_new);
+segments = new_segments;
+imshow(new_segments,[]);
+imwrite(newim,sprintf('result/result_%d_final.jpg',result_i));
+save(sprintf('result/result_%d.mat',result_i),'segments','newcount','total_spix', 'pixel_pos','pixel_no','junc_neigh','G','newim','G_contour','E');
+% G_spix = construct_graph(G,pixel_pos,pixel_no);
