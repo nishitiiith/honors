@@ -3,8 +3,8 @@ regularizer = 1.0;%input('Enter regualizer: ') ;
 folder='images';
 files = dir(folder);
 for totalimages=3:size(files,1)
-    if totalimages == 3
-%         continue;
+    if totalimages < 17
+        continue;
     end
     files(totalimages).name
     I = imread(strcat(folder,'/',files(totalimages).name));
