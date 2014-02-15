@@ -1,10 +1,10 @@
-regionSize = 50;%input('Enter regionsiz: ') ;
+regionSize = 20;%input('Enter regionsiz: ') ;
 regularizer = 1.0;%input('Enter regualizer: ') ;
 folder='images';
 files = dir(folder);
 for totalimages=3:size(files,1)
-    if totalimages < 17
-        continue;
+    if totalimages > 3
+        break;
     end
     files(totalimages).name
     I = imread(strcat(folder,'/',files(totalimages).name));
@@ -104,6 +104,6 @@ for totalimages=3:size(files,1)
     'making graph..'
     imwrite(I2,sprintf('result/junction_%d.jpg',totalimages));
     G=make_graph(totalimages);
-    break;
+%     break;
     
 end

@@ -1,10 +1,11 @@
 function ans = occluding
-
+alpha = 1.5;
 ans = 0;
 load('result/result_3.mat');
 T = zeros(1,total_spix);
 S = zeros(1,total_spix);
-im = imread('semantic segmentation/10.bmp');
+im = imread('semantic segmentation/image1.bmp');
+unary_ocl = containers.Map(-1,-1);
 for i=1:size(im,1)
     for j=1:size(im,2)
         if segments(i,j) == 0
@@ -19,7 +20,7 @@ end
 F=S./T;
 save('fraction','F');
 count = newcount;
-I = imread('images/10.jpg');
+I = imread('images/image1.jpg');
 for i=1:newcount
     p1 = sscanf(pixel_pos(i),'%d');
     I = draw_dot(I,p1,[255,0,0],2);
@@ -34,7 +35,6 @@ for i=1:newcount
         end
     end
 end
-
 for i=1:count
     for j=i+1:count
         if G(i,j) ~= 0
@@ -60,7 +60,8 @@ for i=1:count
             if flag == 1
                 d
             end
-            if d > 0.2
+            unary_ocl(G(i,j)) = d^alpha;
+            if d > 0.5
                 p1 = sscanf(pixel_pos(i),'%d');
                 p2 = sscanf(pixel_pos(j),'%d');
                 I = draw_line(I,p1,p2,[255,255,0]);
@@ -72,6 +73,7 @@ for i=1:count
 end
 imshow(I);
 ans=1;
+save('occluding_unary','unary_ocl');
 function neigh = extract_neigh(Neigh)
 neigh = [];
 for i=1:4
